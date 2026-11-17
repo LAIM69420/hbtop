@@ -56,8 +56,9 @@ dashboard ──idle/attract──> attract
 
 - **Dashboard** is the default. Left = CPU chip, right = RAM module, centre =
   active center module.
-- **Attract** is optional for stats; the no-model provider attract always runs
-  when `/health` is down.
+- **Attract** is optional for stats. When `/health` is down, the offline
+  dashboard keeps the CPU/RAM chips visible and cycles provider wordmarks in
+  the centre.
 - **Action** takeovers draw over the whole grid and restore the previous view
   afterwards.
 

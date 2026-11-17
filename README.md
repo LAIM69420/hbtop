@@ -11,6 +11,11 @@ Designed for shallow panes (herdr, tmux, ssh) where every row counts.
 
 *CPU chip on the left, RAM module on the right, LLM view in the centre.*
 
+![hbtop compact phone view](docs/screenshot-phone.png)
+
+*Compact 73×5 SSH/phone view: the chips keep large status numbers and the
+centre cycles provider wordmarks while no model is loaded.*
+
 ## Features
 
 - **Braille dot matrix renderer** — every character is a 2×4 dot block
@@ -27,8 +32,8 @@ Designed for shallow panes (herdr, tmux, ssh) where every row counts.
   score, offline.
 - **Provider wordmarks** — LFM, QWEN, LING with palette sweeps; optional
   `.branim.json` animations.
-- **No-model attract loop** — cycles provider wordmarks when the server is
-  offline.
+- **Offline dashboard** — CPU/RAM chips stay visible while the centre cycles
+  provider wordmarks when no model is loaded.
 
 ## Requirements
 

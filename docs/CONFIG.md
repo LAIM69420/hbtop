@@ -46,7 +46,7 @@ action_ms = 3000
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `default_mode` | `dashboard` | Starting mode. `attract` starts in the attract cycle. |
-| `attract_enabled` | `false` | Enable the stat attract loop after idle. The no-model provider attract always runs when the server is offline. |
+| `attract_enabled` | `false` | Enable the stat attract loop after idle. When the server is offline, the chips stay visible and the centre cycles provider wordmarks. |
 | `attract_idle_ms` | `10000` | Idle time before the stat attract loop starts. |
 | `attract_step_ms` | `4000` | Time per attract item / provider wordmark. |
 | `action_ms` | `3000` | Duration of READY / JACKPOT / new-high-score takeovers. |

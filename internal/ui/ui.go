@@ -341,7 +341,7 @@ func (u *UI) Render() {
 		if p != nil {
 			u.activePalette = p.palette
 		}
-		u.drawLogoAttract(canvas, full, p)
+		u.drawDashboard(canvas, full, true)
 	case actionActive:
 		if u.action == actionReady {
 			if p := u.providerFor(u.inference.Model); p != nil {
@@ -357,7 +357,7 @@ func (u *UI) Render() {
 				u.activePalette = p.palette
 			}
 		}
-		u.drawDashboard(canvas, full)
+		u.drawDashboard(canvas, full, false)
 	}
 
 	for ry := 0; ry < ch; ry++ {
@@ -580,7 +580,7 @@ func (u *UI) drawTransition(c *braille.Canvas, w, h int) {
 	}
 }
 
-func (u *UI) drawDashboard(c *braille.Canvas, r rect) {
+func (u *UI) drawDashboard(c *braille.Canvas, r rect, offline bool) {
 	leftW := int(float64(r.w) * 0.30)
 	rightW := int(float64(r.w) * 0.30)
 	centerW := r.w - leftW - rightW
@@ -609,16 +609,43 @@ func (u *UI) drawDashboard(c *braille.Canvas, r rect) {
 		u.drawStatusLine(c, rect{right.x, right.y + chipH, right.w, statusH}, "DSK", fmt.Sprintf("%.0f%%", percent(u.snapshot.DiskUsed, u.snapshot.DiskTotal)))
 	}
 
-	switch u.center {
-	case viewLLM:
-		u.drawLLM(c, center)
-	case viewLeaderboardPP:
-		u.drawLeaderboard(c, center, "PP")
-	case viewProcesses:
-		// ASCII overlay is drawn after the canvas blit.
-	default:
-		u.drawLeaderboard(c, center, "TG")
+	if offline {
+		u.drawOfflineCenter(c, center)
+	} else {
+		switch u.center {
+		case viewLLM:
+			u.drawLLM(c, center)
+		case viewLeaderboardPP:
+			u.drawLeaderboard(c, center, "PP")
+		case viewProcesses:
+			// ASCII overlay is drawn after the canvas blit.
+		default:
+			u.drawLeaderboard(c, center, "TG")
+		}
 	}
+}
+
+func (u *UI) drawOfflineCenter(c *braille.Canvas, r rect) {
+	p := u.attractProvider()
+	effect := 0
+	if p != nil {
+		for i := range u.providers {
+			if &u.providers[i] == p {
+				effect = i % 3
+				break
+			}
+		}
+	}
+	if r.h >= 28 {
+		wr := rect{r.x, r.y, r.w, r.h - 8}
+		u.drawWordmark(c, wr, p, 1, effect)
+		f := braille.SmallFont
+		msg := "NO MODEL"
+		mw := f.TextWidth(msg, 1)
+		f.Draw(c, r.x+(r.w-mw)/2, r.y+r.h-f.Height-1, msg, 1)
+		return
+	}
+	u.drawWordmark(c, r, p, 1, effect)
 }
 
 func (u *UI) drawStatusLine(c *braille.Canvas, r rect, label, value string) {
@@ -806,9 +833,26 @@ func drawChipStatusCompact(c *braille.Canvas, x, y, w, h int, usage float64, tem
 	if tempW > 0 {
 		total += gap + tempW
 	}
-	if total > w && tempW > 0 {
+
+	// Prefer keeping both values. If they don't fit, first drop the degree
+	// glyph, then the percent sign, and only then the temperature.
+	if total > w && tempText != "" {
+		if stripped := strings.TrimSuffix(tempText, "°"); stripped != tempText {
+			tempText = stripped
+			tempW = f.TextWidth(tempText, 1)
+			total = numW + gap + pctW + gap + tempW
+		}
+	}
+	if total > w && tempText != "" {
+		pct = ""
+		pctW = 0
+		total = numW + gap + tempW
+	}
+	if total > w {
 		tempText = ""
 		tempW = 0
+		pct = "%"
+		pctW = f.TextWidth(pct, 1)
 		total = numW + gap + pctW
 	}
 	if total > w {
