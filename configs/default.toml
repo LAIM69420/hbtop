@@ -1,0 +1,46 @@
+[theme]
+background = "default"
+foreground = "#e0e0e0"
+accent = "#ffb000"
+warning = "#ff5555"
+
+[layout]
+rows = 4
+columns = 80
+
+[display]
+default_mode = "dashboard"
+attract_enabled = false
+attract_idle_ms = 10000
+attract_step_ms = 4000
+action_ms = 3000
+
+[palette]
+colors = ["#ffb000", "#ff2d95", "#00e5ff", "#7dff00", "#ff5e00", "#9b5cff"]
+cycle_ms = 6000
+brightness = 1.0
+
+[inference]
+enabled = true
+url = "http://127.0.0.1:8081"
+poll_ms = 250
+timeout_ms = 1500
+
+[gpu]
+enabled = true
+poll_ms = 1000
+
+[[provider]]
+match = "lfm"
+wordmark = "LFM"
+palette = ["#00c2ff", "#0077ff"]
+
+[[provider]]
+match = "qwen"
+wordmark = "QWEN"
+palette = ["#615ced", "#a26bff"]
+
+[[provider]]
+match = "ling"
+wordmark = "LING"
+palette = ["#00d4ff", "#0080ff"]
