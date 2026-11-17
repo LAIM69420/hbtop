@@ -1,8 +1,43 @@
 # hbtop
 
-A Braille dot-matrix scoreboard for CPU, GPU, memory, disk, network and LLM
-inference metrics. Designed for a shallow herdr pane with a 90s-DMD /
-modern-colour look.
+A Braille dot-matrix system scoreboard for the terminal. CPU and RAM are drawn
+as chip packages, the center is a switchable panel for LLM inference /
+leaderboards / processes, and the whole display uses a modern colour-DMD
+aesthetic.
+
+Designed for shallow panes (herdr, tmux, ssh) where every row counts.
+
+![hbtop screenshot](docs/screenshot.png)
+
+*CPU chip on the left, RAM module on the right, LLM view in the centre.*
+
+## Features
+
+- **Braille dot matrix renderer** — every character is a 2×4 dot block
+  (U+2800–U+28FF), with a 5×7 pixel font.
+- **CPU / RAM chip visuals** — painted as a chip package and a memory module,
+  with usage and temperature in the middle.
+- **Temperature gradient** — cyan → yellow → orange → red, driven by real
+  sensors.
+- **Center modules** — PP/TG leaderboards, LLM inference, process list.
+- **Live llama.cpp metrics** — prompt / generation throughput, request state,
+  model name, run detection.
+- **Persistent leaderboards** — top 10 PP and TG, per model and per run.
+- **Action takeovers** — model loading / ready, inference finished, new high
+  score, offline.
+- **Provider wordmarks** — LFM, QWEN, LING with palette sweeps; optional
+  `.branim.json` animations.
+- **No-model attract loop** — cycles provider wordmarks when the server is
+  offline.
+
+## Requirements
+
+- Linux (the collectors read `/proc`, `/sys/class/hwmon` and optionally
+  `rocm-smi`).
+- Go 1.27+ to build.
+- Optional: `rocm-smi` for AMD GPU stats.
+- Optional: a llama.cpp server exposing `/health`, `/props`, `/slots`,
+  `/metrics`.
 
 ## Build
 
@@ -10,7 +45,7 @@ modern-colour look.
 make build
 ```
 
-Go is installed at `~/.local/go/bin/go` and linked into `~/.local/bin/go`.
+The Makefile uses `go` from `PATH`.
 
 ## Run
 
@@ -20,105 +55,55 @@ Go is installed at `~/.local/go/bin/go` and linked into `~/.local/bin/go`.
 ./hbtop configs/default.toml
 ```
 
+The app looks for configuration in this order:
+
+1. `$HBTOP_CONFIG`
+2. `~/.config/hbtop/theme.toml`
+3. `configs/default.toml`
+
 ## Keys
 
-- `Tab` — cycle center modules
-- `1` / `2` — PP / TG leaderboard
-- `l` — toggle PP/TG leaderboard
-- `i` — LLM view
-- `p` — process view
-- `m` — combined / model-only / run-only leaderboard
-- `q` / `Esc` — quit
+| Key | Action |
+| --- | --- |
+| `Tab` | Cycle center modules |
+| `1` | PP leaderboard |
+| `2` | TG leaderboard |
+| `l` | Toggle PP/TG leaderboard |
+| `i` | LLM inference view |
+| `p` | Process view |
+| `m` | Combined → model-only → run-only leaderboard |
+| `q` / `Esc` | Quit |
 
-## Display
+## Display layout
 
-- Full-screen Braille dot matrix, animated neon palette.
-- **Dashboard:** CPU/GPU left, center module in the middle, MEM/DSK right.
-- **Center modules:**
-  - TG leaderboard (default)
-  - PP leaderboard
-  - LLM inference: model name, last-run PP/TG, live stats during inference
-  - Process list: PID, name, user, CPU%, MEM% in regular text
-- **Action takeovers:** loading, ready, jackpot, new high score — full grid.
-- **Attract mode:** optional (`attract_enabled`), disabled by default.
+- **Left:** CPU chip (usage + temperature) and a GPU status line.
+- **Center:** switchable module (leaderboard, LLM, processes).
+- **Right:** RAM module (usage + temperature) and a disk status line.
 
-## Wordmarks & no-model attract
+Taller panes get the full chip graphics with pins and an inner die; short
+panes use a compact chip with the same large status numbers.
 
-Provider wordmarks are rendered from config:
+## Center modules
 
-```toml
-[[provider]]
-match = "lfm"
-wordmark = "LFM"
-palette = ["#00c2ff", "#0077ff"]
-# anim = "assets/lfm.branim.json"   # optional branim animation
+- **TG leaderboard (default)** — top 10 text-generation scores.
+- **PP leaderboard** — top 10 prompt-processing scores.
+- **LLM view** — model name, last-run PP/TG, live PP/TG during inference,
+  provider wordmark.
+- **Process view** — PID, name, user, CPU%, MEM% in regular text.
 
-[[provider]]
-match = "qwen"
-wordmark = "QWEN"
-palette = ["#615ced", "#a26bff"]
+## Documentation
 
-[[provider]]
-match = "ling"
-wordmark = "LING"
-palette = ["#00d4ff", "#0080ff"]
-```
+- [Configuration reference](docs/CONFIG.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Development](docs/DEVELOPMENT.md)
+- [branim animation format](docs/BRANIM.md)
+- [Contributing](CONTRIBUTING.md)
 
-- While **no model is loaded**, the full grid runs a logo attract loop cycling
-  all providers with materialize / scanline / bounce effects.
-- **Model load and model switch** play the provider wordmark full-grid, then
-  `READY`.
-- The **LLM idle view** shows a small animated wordmark above the model name.
-- Optional `.branim.json` files in `assets/` override the Go-native wordmark.
+## Status
 
-## Leaderboards
+Prototype. The collectors target Linux; macOS/Windows are not implemented.
+The `[theme]` and `[layout]` config sections are reserved for future use.
 
-- Top 10 PP and TG scores.
-- Combined, model-only, or run-only views (`m`).
-- Persisted at `~/.local/state/hbtop/leaderboard.json`.
-- New #1 triggers a full-grid takeover.
+## License
 
-## LLM metrics
-
-Polls llama.cpp:
-
-- `/health`
-- `/props` (`model_alias`)
-- `/slots` (`is_processing`)
-- `/metrics` (`prompt_tokens_seconds`, `predicted_tokens_seconds`,
-  counters for totals)
-
-Default endpoint: `http://127.0.0.1:8081`.
-
-## GPU
-
-Uses `rocm-smi --json` for AMD GPUs: usage, VRAM, temperature.
-
-## Configuration
-
-The app looks for `$HBTOP_CONFIG`, then `~/.config/hbtop/theme.toml`, then
-`configs/default.toml`.
-
-```toml
-[display]
-default_mode = "dashboard"
-attract_enabled = false
-attract_idle_ms = 10000
-attract_step_ms = 4000
-action_ms = 3000
-
-[palette]
-colors = ["#ffb000", "#ff2d95", "#00e5ff", "#7dff00", "#ff5e00", "#9b5cff"]
-cycle_ms = 6000
-brightness = 1.0
-
-[inference]
-enabled = true
-url = "http://127.0.0.1:8081"
-poll_ms = 250
-timeout_ms = 500
-
-[gpu]
-enabled = true
-poll_ms = 1000
-```
+MIT — see [LICENSE](LICENSE).
