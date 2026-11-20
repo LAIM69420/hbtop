@@ -30,6 +30,12 @@ type State struct {
 
 	LastRunPromptTPS    float64
 	LastRunPredictedTPS float64
+	LivePromptTPS       float64
+	LivePredictedTPS    float64
+	SlotPromptProcessed int
+	SlotDecoded         int
+	PromptAvg           float64
+	PredictedAvg        float64
 }
 
 type EventKind int
@@ -69,6 +75,10 @@ type Watcher struct {
 	lastRunPrompt    float64
 	lastRunPredicted float64
 	failCount        int
+
+	lastSlotPromptProcessed int
+	lastSlotDecoded         int
+	lastSlotAt              time.Time
 }
 
 func NewWatcher(cfg theme.InferenceConfig) *Watcher {
@@ -92,6 +102,7 @@ func (w *Watcher) Poll() State {
 		LastRunPromptTPS:    w.lastRunPrompt,
 		LastRunPredictedTPS: w.lastRunPredicted,
 	}
+	now := time.Now()
 
 	if _, err := w.get("/health"); err != nil {
 		w.failCount++
@@ -119,11 +130,19 @@ func (w *Watcher) Poll() State {
 	}
 
 	var slots []struct {
-		IsProcessing bool `json:"is_processing"`
+		IsProcessing           bool `json:"is_processing"`
+		NPromptTokensProcessed int  `json:"n_prompt_tokens_processed"`
+		NextToken              []struct {
+			NDecoded int `json:"n_decoded"`
+		} `json:"next_token"`
 	}
 	if body, err := w.get("/slots"); err == nil {
 		if json.Unmarshal(body, &slots) == nil && len(slots) > 0 {
 			st.IsProcessing = slots[0].IsProcessing
+			st.SlotPromptProcessed = slots[0].NPromptTokensProcessed
+			if len(slots[0].NextToken) > 0 {
+				st.SlotDecoded = slots[0].NextToken[0].NDecoded
+			}
 		}
 	}
 
@@ -136,6 +155,44 @@ func (w *Watcher) Poll() State {
 	}
 	if st.PredictedTPS > 0 {
 		w.lastPredictedNZ = st.PredictedTPS
+	}
+	if st.PromptSecondsTotal > 0 {
+		st.PromptAvg = st.PromptTokensTotal / st.PromptSecondsTotal
+	}
+	if st.PredictedSecondsTotal > 0 {
+		st.PredictedAvg = st.PredictedTokensTotal / st.PredictedSecondsTotal
+	}
+
+	if st.IsProcessing {
+		if !w.last.IsProcessing {
+			w.lastSlotPromptProcessed = st.SlotPromptProcessed
+			w.lastSlotDecoded = st.SlotDecoded
+			w.lastSlotAt = now
+		} else if !w.lastSlotAt.IsZero() {
+			dt := now.Sub(w.lastSlotAt).Seconds()
+			if dt > 0 {
+				dp := st.SlotPromptProcessed - w.lastSlotPromptProcessed
+				dd := st.SlotDecoded - w.lastSlotDecoded
+				if dp >= 0 {
+					st.LivePromptTPS = float64(dp) / dt
+				}
+				if dd >= 0 {
+					st.LivePredictedTPS = float64(dd) / dt
+				}
+			}
+			w.lastSlotPromptProcessed = st.SlotPromptProcessed
+			w.lastSlotDecoded = st.SlotDecoded
+			w.lastSlotAt = now
+		}
+		// Fall back to the Prometheus counters if slot progress is unavailable.
+		if st.LivePredictedTPS == 0 && w.lastTT > 0 && st.PredictedTokensTotal >= w.lastTT && st.PredictedSecondsTotal > w.lastTS {
+			st.LivePredictedTPS = (st.PredictedTokensTotal - w.lastTT) / (st.PredictedSecondsTotal - w.lastTS)
+		}
+		if st.LivePromptTPS == 0 && w.lastPT > 0 && st.PromptTokensTotal >= w.lastPT && st.PromptSecondsTotal > w.lastPS {
+			st.LivePromptTPS = (st.PromptTokensTotal - w.lastPT) / (st.PromptSecondsTotal - w.lastPS)
+		}
+	} else {
+		w.lastSlotAt = time.Time{}
 	}
 
 	if !st.IsProcessing && !w.last.IsProcessing {

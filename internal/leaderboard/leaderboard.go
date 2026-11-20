@@ -84,6 +84,28 @@ func (s *Store) AddRun(model string, pp, tg float64) (ppRank, tgRank int) {
 	return ppRank, tgRank
 }
 
+// LastScores returns the most recent per-run PP/TG scores recorded for a
+// model path. It is used as a fallback when the live server has no throughput
+// data yet.
+func (s *Store) LastScores(model string) (pp, tg float64, ok bool) {
+	var ppAt, tgAt time.Time
+	for _, e := range s.data.PPRun {
+		if e.Model == model && (ppAt.IsZero() || e.At.After(ppAt)) {
+			pp = e.Score
+			ppAt = e.At
+			ok = true
+		}
+	}
+	for _, e := range s.data.TGRun {
+		if e.Model == model && (tgAt.IsZero() || e.At.After(tgAt)) {
+			tg = e.Score
+			tgAt = e.At
+			ok = true
+		}
+	}
+	return
+}
+
 func (s *Store) PPModel() []Entry { return append([]Entry(nil), s.data.PPModel...) }
 func (s *Store) PPRun() []Entry   { return append([]Entry(nil), s.data.PPRun...) }
 func (s *Store) TGModel() []Entry { return append([]Entry(nil), s.data.TGModel...) }

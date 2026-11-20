@@ -111,6 +111,11 @@ If a sensor is missing, usage is used as a fallback input.
 - Prompt and generation throughput are computed from counter deltas between
   the last idle poll and the finish poll, which is robust even if intermediate
   polls are missed.
+- While a request is running, live throughput comes from slot progress
+  (`n_prompt_tokens_processed`, `n_decoded`) sampled between polls.
+- If live and run data are both unavailable, the LLM view falls back to the
+  latest leaderboard score for the model, then cumulative server averages from
+  the Prometheus counters.
 - Events: model ready, inference started, inference finished, offline.
 
 ## Leaderboards

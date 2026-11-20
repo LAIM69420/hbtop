@@ -1101,12 +1101,26 @@ func (u *UI) drawLLM(c *braille.Canvas, r rect) {
 	pp := u.inference.LastRunPromptTPS
 	tg := u.inference.LastRunPredictedTPS
 	if u.inference.IsProcessing {
-		if u.inference.PromptTPS > 0 {
-			pp = u.inference.PromptTPS
+		pp = firstPositive(u.inference.LivePromptTPS, u.inference.PromptTPS, u.inference.LastRunPromptTPS)
+		tg = firstPositive(u.inference.LivePredictedTPS, u.inference.PredictedTPS, u.inference.LastRunPredictedTPS)
+	}
+	if pp == 0 || tg == 0 {
+		if u.lb != nil && u.inference.Model != "" {
+			if lpp, ltg, ok := u.lb.LastScores(u.inference.Model); ok {
+				if pp == 0 {
+					pp = lpp
+				}
+				if tg == 0 {
+					tg = ltg
+				}
+			}
 		}
-		if u.inference.PredictedTPS > 0 {
-			tg = u.inference.PredictedTPS
-		}
+	}
+	if pp == 0 {
+		pp = u.inference.PromptAvg
+	}
+	if tg == 0 {
+		tg = u.inference.PredictedAvg
 	}
 	line := fmt.Sprintf("PP %.0f  TG %.0f", pp, tg)
 	if !u.inference.Online {
@@ -1339,6 +1353,15 @@ func (u *UI) llmValue() string {
 		return fmt.Sprintf("%.0f", u.inference.PredictedTPS)
 	}
 	return "IDLE"
+}
+
+func firstPositive(values ...float64) float64 {
+	for _, v := range values {
+		if v > 0 {
+			return v
+		}
+	}
+	return 0
 }
 
 func percent(used, total uint64) float64 {

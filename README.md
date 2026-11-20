@@ -93,7 +93,9 @@ panes use a compact chip with the same large status numbers.
 - **TG leaderboard (default)** — top 10 text-generation scores.
 - **PP leaderboard** — top 10 prompt-processing scores.
 - **LLM view** — model name, last-run PP/TG, live PP/TG during inference,
-  provider wordmark.
+  provider wordmark. If no live or run data exists yet, it falls back to the
+  latest recorded leaderboard score for the model, then cumulative server
+  averages from the Prometheus counters.
 - **Process view** — PID, name, user, CPU%, MEM% in regular text.
 
 ## Documentation
