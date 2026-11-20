@@ -1089,7 +1089,7 @@ func (u *UI) drawLLM(c *braille.Canvas, r rect) {
 	if model == "" {
 		model = "LLM"
 	}
-	model = truncateToWidth(f, model, r.w-4, 1)
+	model = fitModelName(f, model, r.w-4, 1)
 	mw := f.TextWidth(model, 1)
 	modelY := r.y
 	if r.h >= 24 {
@@ -1441,6 +1441,27 @@ func isLetterByte(b byte) bool {
 	return (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')
 }
 
+func fitModelName(f *braille.Font, s string, maxDots, scale int) string {
+	if maxDots <= 0 {
+		return ""
+	}
+	if f.TextWidth(s, scale) <= maxDots {
+		return s
+	}
+	var candidates []string
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == '-' || s[i] == '_' || s[i] == ' ' {
+			candidates = append(candidates, strings.TrimRight(s[:i], "-_ ."))
+		}
+	}
+	for _, cand := range candidates {
+		if cand != "" && f.TextWidth(cand, scale) <= maxDots {
+			return cand
+		}
+	}
+	return truncateToWidth(f, s, maxDots, scale)
+}
+
 func truncateToWidth(f *braille.Font, s string, maxDots, scale int) string {
 	if maxDots <= 0 {
 		return ""
@@ -1448,10 +1469,11 @@ func truncateToWidth(f *braille.Font, s string, maxDots, scale int) string {
 	if f.TextWidth(s, scale) <= maxDots {
 		return s
 	}
-	ell := "..."
+	ell := "…"
 	runes := []rune(s)
 	for i := len(runes); i >= 0; i-- {
-		cand := string(runes[:i]) + ell
+		prefix := strings.TrimRight(string(runes[:i]), "-_ .")
+		cand := prefix + ell
 		if f.TextWidth(cand, scale) <= maxDots {
 			return cand
 		}
