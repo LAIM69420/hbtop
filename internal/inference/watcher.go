@@ -76,9 +76,12 @@ type Watcher struct {
 	lastRunPredicted float64
 	failCount        int
 
-	lastSlotPromptProcessed int
-	lastSlotDecoded         int
-	lastSlotAt              time.Time
+	runStartAt       time.Time
+	runStartPrompt   int
+	runStartDecoded  int
+	genStartAt       time.Time
+	genStartDecoded  int
+	finalPromptTPS   float64
 }
 
 func NewWatcher(cfg theme.InferenceConfig) *Watcher {
@@ -165,24 +168,40 @@ func (w *Watcher) Poll() State {
 
 	if st.IsProcessing {
 		if !w.last.IsProcessing {
-			w.lastSlotPromptProcessed = st.SlotPromptProcessed
-			w.lastSlotDecoded = st.SlotDecoded
-			w.lastSlotAt = now
-		} else if !w.lastSlotAt.IsZero() {
-			dt := now.Sub(w.lastSlotAt).Seconds()
-			if dt > 0 {
-				dp := st.SlotPromptProcessed - w.lastSlotPromptProcessed
-				dd := st.SlotDecoded - w.lastSlotDecoded
-				if dp >= 0 {
-					st.LivePromptTPS = float64(dp) / dt
-				}
-				if dd >= 0 {
-					st.LivePredictedTPS = float64(dd) / dt
+			w.runStartAt = now
+			w.runStartPrompt = st.SlotPromptProcessed
+			w.runStartDecoded = st.SlotDecoded
+			w.genStartAt = time.Time{}
+			w.genStartDecoded = st.SlotDecoded
+			w.finalPromptTPS = 0
+			st.LivePromptTPS = 0
+			st.LivePredictedTPS = 0
+		} else {
+			// Prompt-processing average since the run started. This smooths
+			// out the chunky slot updates that caused impossible spikes.
+			if !w.runStartAt.IsZero() {
+				elapsed := now.Sub(w.runStartAt).Seconds()
+				dp := st.SlotPromptProcessed - w.runStartPrompt
+				if elapsed > 0 && dp > 0 {
+					st.LivePromptTPS = float64(dp) / elapsed
 				}
 			}
-			w.lastSlotPromptProcessed = st.SlotPromptProcessed
-			w.lastSlotDecoded = st.SlotDecoded
-			w.lastSlotAt = now
+			// Generation starts when decoded tokens begin to advance.
+			if w.genStartAt.IsZero() && st.SlotDecoded > w.runStartDecoded {
+				w.genStartAt = now
+				w.genStartDecoded = st.SlotDecoded
+				w.finalPromptTPS = st.LivePromptTPS
+			}
+			if !w.genStartAt.IsZero() {
+				dt := now.Sub(w.genStartAt).Seconds()
+				dd := st.SlotDecoded - w.genStartDecoded
+				if dt > 0 && dd > 0 {
+					st.LivePredictedTPS = float64(dd) / dt
+				}
+				if w.finalPromptTPS > 0 {
+					st.LivePromptTPS = w.finalPromptTPS
+				}
+			}
 		}
 		// Fall back to the Prometheus counters if slot progress is unavailable.
 		if st.LivePredictedTPS == 0 && w.lastTT > 0 && st.PredictedTokensTotal >= w.lastTT && st.PredictedSecondsTotal > w.lastTS {
@@ -192,7 +211,8 @@ func (w *Watcher) Poll() State {
 			st.LivePromptTPS = (st.PromptTokensTotal - w.lastPT) / (st.PromptSecondsTotal - w.lastPS)
 		}
 	} else {
-		w.lastSlotAt = time.Time{}
+		w.runStartAt = time.Time{}
+		w.genStartAt = time.Time{}
 	}
 
 	if !st.IsProcessing && !w.last.IsProcessing {
