@@ -1084,16 +1084,17 @@ func (u *UI) drawWide(c *braille.Canvas, r rect, label, value string) {
 
 func (u *UI) drawLLM(c *braille.Canvas, r rect) {
 	f := braille.SmallFont
-	model := shortModel(u.inference.Model)
+	provider := u.providerFor(u.inference.Model)
+	model := displayModelName(u.inference.Model, provider)
 	if model == "" {
 		model = "LLM"
 	}
-	model = fitString(f, model, r.w-4, 1)
+	model = truncateToWidth(f, model, r.w-4, 1)
 	mw := f.TextWidth(model, 1)
 	modelY := r.y
 	if r.h >= 24 {
 		wr := rect{r.x, r.y, r.w, f.Height + 1}
-		u.drawWordmark(c, wr, u.providerFor(u.inference.Model), 1, 0)
+		u.drawWordmark(c, wr, provider, 1, 0)
 		modelY = r.y + f.Height + 1
 	}
 	f.Draw(c, r.x+(r.w-mw)/2, modelY, model, 1)
@@ -1413,6 +1414,49 @@ func fallbackWordmark(model string) string {
 		return "LLM"
 	}
 	return strings.ToUpper(word)
+}
+
+func displayModelName(p string, prov *provider) string {
+	base := shortModel(p)
+	if base == "" {
+		return ""
+	}
+	base = strings.ToUpper(base)
+	if prov != nil && prov.wordmark != "" {
+		prefix := strings.ToUpper(prov.wordmark)
+		if strings.HasPrefix(base, prefix) {
+			rest := base[len(prefix):]
+			if rest == "" || !isLetterByte(rest[0]) {
+				rest = strings.TrimLeft(rest, "-_ .")
+				if rest != "" {
+					base = rest
+				}
+			}
+		}
+	}
+	return base
+}
+
+func isLetterByte(b byte) bool {
+	return (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')
+}
+
+func truncateToWidth(f *braille.Font, s string, maxDots, scale int) string {
+	if maxDots <= 0 {
+		return ""
+	}
+	if f.TextWidth(s, scale) <= maxDots {
+		return s
+	}
+	ell := "..."
+	runes := []rune(s)
+	for i := len(runes); i >= 0; i-- {
+		cand := string(runes[:i]) + ell
+		if f.TextWidth(cand, scale) <= maxDots {
+			return cand
+		}
+	}
+	return ell
 }
 
 func truncate(s string, max int) string {
