@@ -68,6 +68,6 @@ branim README for the full CLI.
 ## Tips for hbtop
 
 - Keep `cell_h` small enough to fit the target view (for example 4–8 cells).
-- Leave the outer row/column clear; hbtop may add chip or wordmark elements
+- Leave the outer row/column clear; hbtop may add stat or wordmark elements
   around the frame.
 - Use high-contrast dot patterns; palette sweeps will brighten cells over time.

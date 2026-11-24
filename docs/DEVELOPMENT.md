@@ -69,7 +69,7 @@ target area and applies the provider palette.
 
 ## Tuning the centre modules
 
-- `internal/ui/ui.go` holds the dashboard, chip drawing, leaderboard, LLM view,
+- `internal/ui/ui.go` holds the dashboard, stat drawing, leaderboard, LLM view,
   process view, actions, and wordmarks.
 - `internal/ui` is intentionally one file for now; split it if it grows.
 - The center view enum is `centerView`; key handling lives in

@@ -1,27 +1,21 @@
 # hbtop
 
-A Braille dot-matrix system scoreboard for the terminal. CPU and RAM are drawn
-as chip packages, the center is a switchable panel for LLM inference /
-leaderboards / processes, and the whole display uses a modern colour-DMD
-aesthetic.
+A Braille dot-matrix system scoreboard for the terminal. Large numeric
+CPU/GPU/RAM/DSK readouts frame a switchable center panel for LLM inference /
+leaderboards / processes, with a modern colour-DMD aesthetic.
 
 Designed for shallow panes (herdr, tmux, ssh) where every row counts.
 
 ![hbtop screenshot](docs/screenshot.png)
 
-*CPU chip on the left, RAM module on the right, LLM view in the centre.*
-
-![hbtop compact phone view](docs/screenshot-phone.png)
-
-*Compact 73×5 SSH/phone view: the chips keep large status numbers and the
-centre cycles provider wordmarks while no model is loaded.*
+*CPU/GPU on the left, RAM/DSK on the right, LLM view in the centre.*
 
 ## Features
 
 - **Braille dot matrix renderer** — every character is a 2×4 dot block
   (U+2800–U+28FF), with a 5×7 pixel font.
-- **CPU / RAM chip visuals** — painted as a chip package and a memory module,
-  with usage and temperature in the middle.
+- **Large numeric readouts** — CPU, GPU, RAM and DSK with short labels and big
+  values. CPU and RAM numbers are coloured by temperature.
 - **Temperature gradient** — cyan → yellow → orange → red, driven by real
   sensors.
 - **Center modules** — PP/TG leaderboards, LLM inference, process list.
@@ -32,8 +26,8 @@ centre cycles provider wordmarks while no model is loaded.*
   score, offline.
 - **Provider wordmarks** — LFM, QWEN, LING with palette sweeps; optional
   `.branim.json` animations.
-- **Offline dashboard** — CPU/RAM chips stay visible while the centre cycles
-  provider wordmarks when no model is loaded.
+- **Offline dashboard** — the CPU/GPU/RAM/DSK numbers stay visible while the
+  centre cycles provider wordmarks when no model is loaded.
 
 ## Requirements
 
@@ -81,12 +75,12 @@ The app looks for configuration in this order:
 
 ## Display layout
 
-- **Left:** CPU chip (usage + temperature) and a GPU status line.
+- **Left:** CPU and GPU numbers.
 - **Center:** switchable module (leaderboard, LLM, processes).
-- **Right:** RAM module (usage + temperature) and a disk status line.
+- **Right:** RAM and DSK numbers.
 
-Taller panes get the full chip graphics with pins and an inner die; short
-panes use a compact chip with the same large status numbers.
+The stat rows keep readable numbers at short heights; CPU and RAM are
+temperature-coloured.
 
 ## Center modules
 

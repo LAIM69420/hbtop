@@ -13,7 +13,7 @@ internal/inference/   llama.cpp watcher + event detection
 internal/leaderboard/ persistent PP/TG high-score store
 internal/theme/       TOML configuration
 internal/anim/        .branim.json loader
-internal/ui/          renderer, dashboard, chips, center modules
+internal/ui/          renderer, dashboard, stat readouts, center modules
 ```
 
 ## Data flow
@@ -42,7 +42,7 @@ the screen.
 - Colour is decided per cell at blit time:
   - global palette gradient by default;
   - provider palette while a wordmark is active;
-  - chip zone override for CPU/RAM (temperature gradient).
+  - temperature override for the CPU/RAM rows.
 
 ## Display states
 
@@ -54,10 +54,10 @@ dashboard ──idle/attract──> attract
                    └──timeout──> previous center view
 ```
 
-- **Dashboard** is the default. Left = CPU chip, right = RAM module, centre =
+- **Dashboard** is the default. Left = CPU/GPU, right = RAM/DSK, centre =
   active center module.
 - **Attract** is optional for stats. When `/health` is down, the offline
-  dashboard keeps the CPU/RAM chips visible and cycles provider wordmarks in
+  dashboard keeps the stat readouts visible and cycles provider wordmarks in
   the centre.
 - **Action** takeovers draw over the whole grid and restore the previous view
   afterwards.
@@ -74,16 +74,19 @@ dashboard ──idle/attract──> attract
 Keys change the enum; inference start switches to `viewLLM` and restores the
 previous view on finish. Process view is drawn as ASCII after the Braille blit.
 
-## CPU / RAM chips
+## Stat readouts
 
-`drawCPU` and `drawRAM` choose a layout based on available dot height:
+The dashboard shows four stat rows:
 
-- **Tall panes:** full chip package with pins and an inner die; usage and
-  temperature are two large lines.
-- **Short panes:** edge-to-edge outline and one compact line (`95% 59°`) at
-  scale 2 so the numbers stay legible.
+- left: CPU (top), GPU (bottom)
+- right: RAM (top), DSK (bottom)
 
-Chip colour is computed from temperature:
+Each row is a short label plus a large numeric value. The value drops from
+scale 2 to scale 1 only when a three-digit value would otherwise collide with
+the label.
+
+CPU and RAM rows are temperature-coloured; GPU and DSK use the global palette.
+Temperature colour mapping:
 
 ```
 temp < 30        cyan

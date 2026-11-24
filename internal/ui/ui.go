@@ -589,25 +589,22 @@ func (u *UI) drawDashboard(c *braille.Canvas, r rect, offline bool) {
 	center := rect{r.x + leftW, r.y, centerW, r.h}
 	right := rect{r.x + leftW + centerW, r.y, rightW, r.h}
 
-	statusH := 8
-	if r.h < 44 {
-		statusH = 0
-	}
-	chipH := r.h - statusH
-	if chipH < 12 {
-		chipH = r.h
-		statusH = 0
-	}
+	half := r.h / 2
+	cpuRect := rect{left.x, left.y, left.w, half}
+	gpuRect := rect{left.x, left.y + half, left.w, r.h - half}
+	ramRect := rect{right.x, right.y, right.w, half}
+	dskRect := rect{right.x, right.y + half, right.w, r.h - half}
 
-	u.drawCPU(c, rect{left.x, left.y, left.w, chipH})
-	if statusH > 0 {
-		u.drawStatusLine(c, rect{left.x, left.y + chipH, left.w, statusH}, "GPU", u.gpuValue())
-	}
-
-	u.drawRAM(c, rect{right.x, right.y, right.w, chipH})
-	if statusH > 0 {
-		u.drawStatusLine(c, rect{right.x, right.y + chipH, right.w, statusH}, "DSK", fmt.Sprintf("%.0f%%", percent(u.snapshot.DiskUsed, u.snapshot.DiskTotal)))
-	}
+	memPct := percent(u.snapshot.MemUsed, u.snapshot.MemTotal)
+	diskPct := percent(u.snapshot.DiskUsed, u.snapshot.DiskTotal)
+	u.overrides = append(u.overrides,
+		cellZone(cpuRect, tempColor(u.temps.CPUTemp, u.snapshot.CPUPercent, u.temps.HasCPU)),
+		cellZone(ramRect, tempColor(u.temps.RAMTemp, memPct, u.temps.HasRAM)),
+	)
+	u.drawStatRow(c, cpuRect, "CPU", u.snapshot.CPUPercent)
+	u.drawStatRow(c, gpuRect, "GPU", u.gpu.Usage)
+	u.drawStatRow(c, ramRect, "RAM", memPct)
+	u.drawStatRow(c, dskRect, "DSK", diskPct)
 
 	if offline {
 		u.drawOfflineCenter(c, center)
@@ -646,6 +643,29 @@ func (u *UI) drawOfflineCenter(c *braille.Canvas, r rect) {
 		return
 	}
 	u.drawWordmark(c, r, p, 1, effect)
+}
+
+func (u *UI) drawStatRow(c *braille.Canvas, r rect, label string, value float64) {
+	f := braille.SmallFont
+	num := fmt.Sprintf("%.0f", value)
+	lw := f.TextWidth(label, 1)
+	gap := 1
+	scale := 2
+	nw := f.TextWidth(num, scale)
+	if lw+gap+nw > r.w-2 {
+		scale = 1
+		nw = f.TextWidth(num, scale)
+	}
+	total := lw + gap + nw
+	startX := r.x + (r.w-total)/2
+	if startX < r.x+1 {
+		startX = r.x + 1
+	}
+	labelY := r.y + (r.h-f.Height)/2
+	numH := f.Height * scale
+	numY := r.y + (r.h-numH)/2
+	f.Draw(c, startX, labelY, label, 1)
+	f.Draw(c, startX+lw+gap, numY, num, scale)
 }
 
 func (u *UI) drawStatusLine(c *braille.Canvas, r rect, label, value string) {
